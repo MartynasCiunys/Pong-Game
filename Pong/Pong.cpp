@@ -40,6 +40,7 @@ void remap(char map[][x], char D[][x], paddle& pad, Ball& b);
 void padmove(paddle& pad, bool& quit);
 void BallMove(paddle& pad, Ball& b, int& score1, int& score2);
 void Logic(paddle& pad, Ball& b, int& score1, int& score2);
+void gotoxy(int column, int line);
 
 int main()
 {
@@ -57,7 +58,7 @@ int main()
         {
             if (i == 0 || i == y - 1)
             {
-                D[i][j] = 196;
+                D[i][j] = char(196);
             }
 
             else
@@ -77,7 +78,8 @@ int main()
         print(map, score1, score2);
         padmove(pad, quit);
         BallMove(pad, b, score1, score2);
-        Sleep(50);
+        gotoxy(0, 0);
+        Sleep(10);
 
         if (quit)
             return 0;
@@ -108,10 +110,10 @@ int main()
 void print(char map[][x], int score1, int score2)
 {
     string score1T = "Player 1 score: ", score2T = "Player 2 score: ";
-    char line = 196;
-    int s = 0;
+    const char line = char(196);
+    size_t s = 0;
 
-    system("cls");
+    //system("cls");
 
     //Score
     score1T += to_string(score1);
@@ -164,9 +166,9 @@ void remap(char map[][x], char D[][x], paddle& pad, Ball& b)
             for (int s = 0; s < PadSize; s++)
             {
                 if (i == pad.pad1Y + s && j == 0)
-                    map[i][j] = 987;
+                    map[i][j] = (char)987;
                 if (i == pad.pad2Y + s && j == x - 1)
-                    map[i][j] = 987;
+                    map[i][j] = (char)987;
             }
 
             if (i == b.ballY && j == b.ballX)
@@ -280,7 +282,7 @@ void Logic(paddle& pad, Ball& b, int& score1, int& score2)
     }
 
     //Paddle
-    srand(time(NULL));
+    srand((unsigned)time(NULL));
     for (int i = 0; i < PadSize; i++)
     {
         if (b.ballY == pad.pad1Y + i && b.ballX == 1)
@@ -300,4 +302,13 @@ void ShowConsoleCursor(bool showFlag)
     GetConsoleCursorInfo(out, &cursorInfo);
     cursorInfo.bVisible = showFlag; // set the cursor visibility
     SetConsoleCursorInfo(out, &cursorInfo);
+}
+void gotoxy(int column, int line) {
+    COORD coord;
+    coord.X = column;
+    coord.Y = line;
+    SetConsoleCursorPosition(
+        GetStdHandle(STD_OUTPUT_HANDLE),
+        coord
+    );
 }
