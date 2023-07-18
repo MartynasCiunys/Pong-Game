@@ -9,13 +9,14 @@
 #include <conio.h>
 #include <string>
 #include <fstream>
+#include <cmath>
 
 
 using namespace std;
 
 const int x = 81;
 const int y = 21;
-const int PadSize = 7;
+const int PadSize = 5;
 
 enum BallD { STOP = 0, LEFT = 1, UPLEFT = 2, DOWNLEFT = 3, RIGHT = 4, UPRIGHT = 5, DOWNRIGHT = 6 };
 
@@ -38,17 +39,20 @@ void ShowConsoleCursor(bool showFlag);
 void print(char map[][x], int score1, int score2);
 void remap(char map[][x], char D[][x], paddle& pad, Ball& b);
 void padmove(paddle& pad, bool& quit);
-void BallMove(paddle& pad, Ball& b, int& score1, int& score2);
-void Logic(paddle& pad, Ball& b, int& score1, int& score2);
+void BallMove(paddle& pad, Ball& b, int& score1, int& score2, int& error);
+void Bot(Ball b, Ball& t, paddle& pad, int score1, int score2, int error, int& s);
+void Logic(paddle& pad, Ball& b, int& score1, int& score2, int& error);
 void gotoxy(int column, int line);
 
 int main()
 {
+    int error = 0, s = 0, speed = 50;
     int score1 = 0, score2 = 0;
     char map[y][x], D[y][x];
     bool quit = false;
-    Ball b;
+    Ball b, t, v;
     paddle pad;
+
 
     ShowConsoleCursor(false);
 
@@ -58,7 +62,7 @@ int main()
         {
             if (i == 0 || i == y - 1)
             {
-                D[i][j] = char(196);
+                D[i][j] = 196;
             }
 
             else
@@ -69,17 +73,23 @@ int main()
                 else { D[i][j] = '.'; }
         }
     }
-
+    ofstream ofs("data.txt");
+    clock_t now = clock();
 
     while (!quit)
     {
-        Logic(pad, b, score1, score2);
+        if (speed > 0)
+            speed = 50 - ((clock() - now) / 1000);
+        Logic(pad, b, score1, score2, error);
         remap(map, D, pad, b);
         print(map, score1, score2);
         padmove(pad, quit);
-        BallMove(pad, b, score1, score2);
+        BallMove(pad, b, score1, score2, error);
+        Bot(b, t, pad, score1, score2, error, s);
         gotoxy(0, 0);
-        Sleep(10);
+        Sleep(20);
+
+        ofs << b.ballX << " " << b.ballY << " | " << t.ballX << " " << t.ballY << " | " << pad.pad2Y << endl;
 
         if (quit)
             return 0;
@@ -102,7 +112,11 @@ int main()
 
     cout << endl << endl << "If you want to play again press Y, if not press N";
     if (_getch() == 'y')
+    {
+        system("CLS");
         main();
+    }
+
     else if (_getch() == 'n')
         return 0;
 }
@@ -110,10 +124,8 @@ int main()
 void print(char map[][x], int score1, int score2)
 {
     string score1T = "Player 1 score: ", score2T = "Player 2 score: ";
-    const char line = char(196);
-    size_t s = 0;
-
-    //system("cls");
+    char line = 196;
+    int s = 0;
 
     //Score
     score1T += to_string(score1);
@@ -166,9 +178,9 @@ void remap(char map[][x], char D[][x], paddle& pad, Ball& b)
             for (int s = 0; s < PadSize; s++)
             {
                 if (i == pad.pad1Y + s && j == 0)
-                    map[i][j] = (char)987;
+                    map[i][j] = 987;
                 if (i == pad.pad2Y + s && j == x - 1)
-                    map[i][j] = (char)987;
+                    map[i][j] = 987;
             }
 
             if (i == b.ballY && j == b.ballX)
@@ -205,7 +217,7 @@ void padmove(paddle& pad, bool& quit)
 
 }
 
-void BallMove(paddle& pad, Ball& b, int& score1, int& score2)
+void BallMove(paddle& pad, Ball& b, int& score1, int& score2, int& error)
 {
     switch (b.d)
     {
@@ -213,7 +225,7 @@ void BallMove(paddle& pad, Ball& b, int& score1, int& score2)
         break;
     case LEFT:
         b.ballX--;
-        Logic(pad, b, score1, score2);
+        Logic(pad, b, score1, score2, error);
         if (b.d == LEFT)
             b.ballX--;
         break;
@@ -227,7 +239,7 @@ void BallMove(paddle& pad, Ball& b, int& score1, int& score2)
         break;
     case RIGHT:
         b.ballX++;
-        Logic(pad, b, score1, score2);
+        Logic(pad, b, score1, score2, error);
         if (b.d == RIGHT)
             b.ballX++;
         break;
@@ -244,7 +256,7 @@ void BallMove(paddle& pad, Ball& b, int& score1, int& score2)
     }
 }
 
-void Logic(paddle& pad, Ball& b, int& score1, int& score2)
+void Logic(paddle& pad, Ball& b, int& score1, int& score2, int& error)
 {
     //Up Wall
     if (b.ballY == 1)
@@ -268,6 +280,7 @@ void Logic(paddle& pad, Ball& b, int& score1, int& score2)
         b.ballX = b.OballX;
         b.ballY = b.OballY;
         b.d = LEFT;
+        error = 0;
     }
 
     //Right Wall
@@ -279,19 +292,88 @@ void Logic(paddle& pad, Ball& b, int& score1, int& score2)
         b.ballX = b.OballX;
         b.ballY = b.OballY;
         b.d = RIGHT;
+        error = 0;
     }
 
     //Paddle
-    srand((unsigned)time(NULL));
+    srand(time(NULL));
     for (int i = 0; i < PadSize; i++)
     {
         if (b.ballY == pad.pad1Y + i && b.ballX == 1)
+        {
             b.d = (BallD)((rand() % 3) + 4);
+            error = ((rand() % PadSize + 2) - 1);
+
+        }
         if (b.ballY == pad.pad2Y + i && b.ballX == x - 2)
+        {
             b.d = (BallD)((rand() % 3) + 1);
+        }
+
+    }
+}
+void Bot(Ball b, Ball& t, paddle& pad, int score1, int score2, int error, int& s)
+{
+    int temp = pad.pad2Y;
+    if (b.ballX > x / 2 + x / 4)
+    {
+        if (b.d == RIGHT || b.d == DOWNRIGHT || b.d == UPRIGHT)
+        {
+            if (t.ballX != x - 2)
+            {
+                t = b;
+                while (t.ballX != x - 2)
+                {
+                    Logic(pad, t, score1, score2, error);
+                    BallMove(pad, t, score1, score2, error);
+                }
+            }
+            else {
+                while (t.ballY - error < 1)
+                    error--;
+                while (t.ballY + (PadSize - error) > y - 2)
+                    error++;
+
+                if (t.ballY != pad.pad2Y + error)
+                {
+                    if (s == 1)
+                    {
+                        if (pad.pad2Y + error > t.ballY)
+                            pad.pad2Y--;
+                        else if (pad.pad2Y + error < t.ballY)
+                            pad.pad2Y++;
+                        s = 0;
+                    }
+                    else s++;
+
+                }
+            }
+        }
+    }
+    else {
+        if (pad.Opad2Y != pad.pad2Y)
+        {
+            if (s == 2)
+            {
+                if (pad.pad2Y > pad.Opad2Y)
+                    pad.pad2Y--;
+                else if (pad.pad2Y < pad.Opad2Y)
+                    pad.pad2Y++;
+                s = 0;
+            }
+            else s++;
+
+        }
+    }
+    if (t.ballY == pad.pad2Y + error && t.ballX == x - 2)
+    {
+        t.ballX = 0;
+        t.ballY = 0;
+        t.d = STOP;
     }
 
 }
+
 
 void ShowConsoleCursor(bool showFlag)
 {
@@ -303,6 +385,7 @@ void ShowConsoleCursor(bool showFlag)
     cursorInfo.bVisible = showFlag; // set the cursor visibility
     SetConsoleCursorInfo(out, &cursorInfo);
 }
+
 void gotoxy(int column, int line) {
     COORD coord;
     coord.X = column;
